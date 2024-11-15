@@ -6,7 +6,8 @@ import numpy as np
 from torchvision.transforms import Compose
 from midas.midas_net import MidasNet
 from midas.transforms import Resize, NormalizeImage, PrepareForNet
-
+from midas.midas_net_custom import MidasNet_small
+from midas.transforms import Resize, NormalizeImage, PrepareForNet
 # Constants
 IPD = 6.5
 MONITOR_W = 38.5

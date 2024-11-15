@@ -49,24 +49,34 @@ def run_model(image_path, model):
     left_img = cv2.imread(image_path)
     img = cv2.cvtColor(left_img, cv2.COLOR_BGR2RGB) / 255.0
 
-    transform = Compose([
-        Resize(384, 384, ensure_multiple_of=32, resize_method="upper_bound"),
-        NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        PrepareForNet(),
-    ])
-    image = transform({"image": img})["image"]
-    image = torch.from_numpy(image).to(device).unsqueeze(0)
+    midas_model_type = "DPT_Large"  # or use "DPT_Hybrid" for a smaller model
+    midas = torch.hub.load("intel-isl/MiDaS", midas_model_type)
+    midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
 
+    transform = midas_transforms.default_transform
+    #img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #input_batch = transform(image).unsqueeze(0)
+
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    midas.to(device)
+    midas.eval()
+    input_batch = transform(img).to(device)
     with torch.no_grad():
-        depth = model.forward(image)
-        depth = torch.nn.functional.interpolate(
-            depth.unsqueeze(1),
+        prediction = midas(input_batch)
+
+        prediction = torch.nn.functional.interpolate(
+            prediction.unsqueeze(1),
             size=left_img.shape[:2],
             mode="bicubic",
             align_corners=False,
-        ).squeeze().cpu().numpy()
+        ).squeeze()
 
-    depth_map = write_depth(depth, bits=2, reverse=False)
+    output = prediction.cpu().numpy()
+    midas_depth = output
+    midas_depth = cv2.resize(midas_depth, (left_img.shape[1], left_img.shape[0]))
+    midas_depth=cv2.normalize(midas_depth, None, 0, 255, cv2.NORM_MINMAX)
+    midas_depth = ((midas_depth - midas_depth.min()) / (midas_depth.max()-midas_depth.min())) * 255
+    midas_depth= midas_depth.astype(np.uint8)
     right_img = generate_stereo(left_img, depth_map)
     anaglyph = overlap(left_img, right_img)
 

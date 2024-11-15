@@ -10,7 +10,7 @@ from midas.transforms import Resize, NormalizeImage, PrepareForNet
 # Constants
 IPD = 6.5
 MONITOR_W = 38.5
-MODEL_PATH = "midas_v21_small-70d6b9c8.pt"
+#MODEL_PATH = "midas_v21_small-70d6b9c8.pt"
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "outputs"
 

@@ -45,7 +45,7 @@ def overlap(im1, im2):
     composite[..., :2] = im2[..., :2]
     return composite
 
-def run_model(image_path, model):
+def run_model(image_path):
     left_img = cv2.imread(image_path)
     img = cv2.cvtColor(left_img, cv2.COLOR_BGR2RGB) / 255.0
 
@@ -76,7 +76,7 @@ def run_model(image_path, model):
     midas_depth = cv2.resize(midas_depth, (left_img.shape[1], left_img.shape[0]))
     midas_depth=cv2.normalize(midas_depth, None, 0, 255, cv2.NORM_MINMAX)
     midas_depth = ((midas_depth - midas_depth.min()) / (midas_depth.max()-midas_depth.min())) * 255
-    midas_depth= midas_depth.astype(np.uint8)
+    depth_map= midas_depth.astype(np.uint8)
     right_img = generate_stereo(left_img, depth_map)
     anaglyph = overlap(left_img, right_img)
 
@@ -94,14 +94,14 @@ if uploaded_files:
         st.error("You can upload up to 5 images only.")
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = MidasNet(MODEL_PATH, non_negative=True).to(device).eval()
+        #model = MidasNet(MODEL_PATH, non_negative=True).to(device).eval()
 
         for file in uploaded_files:
             file_path = os.path.join(UPLOAD_FOLDER, file.name)
             with open(file_path, "wb") as f:
                 f.write(file.read())
 
-            depth_map, right_img, anaglyph = run_model(file_path, model)
+            depth_map, right_img, anaglyph = run_model(file_path)
 
             # Save outputs
             depth_map_path = os.path.join(OUTPUT_FOLDER, f"{file.name}_depth.png")

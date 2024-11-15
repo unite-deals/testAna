@@ -1,105 +1,116 @@
 import streamlit as st
-import os
 import torch
-import cv2
 import numpy as np
+import cv2
 from torchvision.transforms import Compose
-from midas.midas_net import MidasNet
-from midas.transforms import Resize, NormalizeImage, PrepareForNet
 from midas.midas_net_custom import MidasNet_small
 from midas.transforms import Resize, NormalizeImage, PrepareForNet
-# Constants
-IPD = 6.5
-MONITOR_W = 38.5
-MODEL_PATH = "midas_v21_small-70d6b9c8.pt"
-UPLOAD_FOLDER = "uploads"
-OUTPUT_FOLDER = "outputs"
 
-# Create folders if not exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Initialize the model and transformations
+@st.cache_resource
+def load_model():
+    model_path = "model-small.pt"  # Replace with the path to your small MiDaS model
+    model = MidasNet_small(
+        model_path,
+        features=64,
+        backbone="efficientnet_lite3",
+        exportable=True,
+        non_negative=True,
+        blocks={"expand": True},
+    )
+    model.eval()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    
+    net_w, net_h = 256, 256
+    transform = Compose(
+        [
+            Resize(
+                net_w,
+                net_h,
+                resize_target=None,
+                keep_aspect_ratio=True,
+                ensure_multiple_of=32,
+                resize_method="upper_bound",
+                image_interpolation_method=cv2.INTER_CUBIC,
+            ),
+            NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            PrepareForNet(),
+        ]
+    )
+    return model, transform, device
 
-# Functions
-def write_depth(depth, bits=1, reverse=True):
-    depth_min = depth.min()
-    depth_max = depth.max()
-    max_val = (2**(8*bits))-1
-    out = max_val * (depth - depth_min) / (depth_max - depth_min) if depth_max - depth_min > np.finfo("float").eps else 0
-    return (max_val - out if not reverse else out).astype("uint16" if bits == 2 else "uint8")
+# Convert depth map to anaglyph
+def create_anaglyph(image, depth_map):
+    h, w = depth_map.shape
+    shift = 10  # Shift value for the anaglyph effect
+    anaglyph = np.zeros((h, w, 3), dtype=np.uint8)
+    
+    # Normalize depth map to range 0-255
+    depth_map = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    # Create red (left) and cyan (right) channels
+    red_channel = cv2.addWeighted(image[:, :, 2], 1, depth_map, 0.5, 0)
+    cyan_channel = cv2.addWeighted(image[:, :, 0], 1, depth_map, 0.5, 0)
+    
+    # Shift the cyan channel for the 3D effect
+    cyan_channel_shifted = np.roll(cyan_channel, shift, axis=1)
+    
+    # Combine channels
+    anaglyph[:, :, 2] = red_channel  # Red
+    anaglyph[:, :, 0] = cyan_channel_shifted  # Cyan
+    
+    return anaglyph
 
-def generate_stereo(left_img, depth):
-    h, w, _ = left_img.shape
-    depth = (depth - depth.min()) / (depth.max() - depth.min())
-    right = np.zeros_like(left_img)
-    deviation_cm = IPD * 0.12
-    deviation = deviation_cm * MONITOR_W * (w / 1920)
-    for row in range(h):
-        for col in range(w):
-            col_r = col - int((1 - depth[row][col] ** 2) * deviation)
-            if col_r >= 0:
-                right[row][col_r] = left_img[row][col]
-    return right
-
-def overlap(im1, im2):
-    composite = np.zeros_like(im1)
-    composite[..., 2] = im1[..., 2]
-    composite[..., :2] = im2[..., :2]
-    return composite
-
-def run_model(image_path, model):
-    left_img = cv2.imread(image_path)
-    img = cv2.cvtColor(left_img, cv2.COLOR_BGR2RGB) / 255.0
-
-    transform = Compose([
-        Resize(256, 256, ensure_multiple_of=32, resize_method="upper_bound"),
-        NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        PrepareForNet(),
-    ])
-    image = transform({"image": img})["image"]
-    image = torch.from_numpy(image).to(device).unsqueeze(0)
+# Process the uploaded image
+def process_image(image, model, transform, device):
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    img_input = transform({"image": img})["image"]
+    img_input = torch.from_numpy(img_input).to(device).unsqueeze(0)
 
     with torch.no_grad():
-        depth = model.forward(image)
-        depth = torch.nn.functional.interpolate(
-            depth.unsqueeze(1),
-            size=left_img.shape[:2],
-            mode="bicubic",
-            align_corners=False,
-        ).squeeze().cpu().numpy()
+        depth_map = model(img_input)
+        depth_map = (
+            torch.nn.functional.interpolate(
+                depth_map.unsqueeze(1),
+                size=img.shape[:2],
+                mode="bicubic",
+                align_corners=False,
+            )
+            .squeeze()
+            .cpu()
+            .numpy()
+        )
+    
+    return depth_map
 
-    depth_map = write_depth(depth, bits=2, reverse=False)
-    right_img = generate_stereo(left_img, depth_map)
-    anaglyph = overlap(left_img, right_img)
+# Streamlit App Interface
+st.title("Image to Depth Map and Anaglyph Generator")
 
-    return depth_map, right_img, anaglyph
+# File upload
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-# Streamlit UI
-st.title("Image to Anaglyph Converter")
-st.write("Upload up to 5 images (max 4K resolution) to generate depth maps, stereo images, and anaglyph images.")
+if uploaded_file is not None:
+    # Load the image
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+    image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-uploaded_files = st.file_uploader(
-    "Upload Images", type=["png", "jpg", "jpeg"], accept_multiple_files=True, key="file_uploader"
-)
-if uploaded_files:
-    if len(uploaded_files) > 5:
-        st.error("You can upload up to 5 images only.")
-    else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = MidasNet(MODEL_PATH, non_negative=True).to(device).eval()
+    # Load the model
+    with st.spinner("Loading model..."):
+        model, transform, device = load_model()
 
-        for file in uploaded_files:
-            file_path = os.path.join(UPLOAD_FOLDER, file.name)
-            with open(file_path, "wb") as f:
-                f.write(file.read())
+    # Generate depth map
+    with st.spinner("Generating depth map..."):
+        depth_map = process_image(image, model, transform, device)
+        
+        # Display depth map
+        st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
 
-            depth_map, right_img, anaglyph = run_model(file_path, model)
+    # Generate anaglyph
+    with st.spinner("Generating anaglyph..."):
+        anaglyph_image = create_anaglyph(image, depth_map)
+        st.image(anaglyph_image, caption="Anaglyph Image", use_column_width=True)
 
-            # Save outputs
-            depth_map_path = os.path.join(OUTPUT_FOLDER, f"{file.name}_depth.png")
-            anaglyph_path = os.path.join(OUTPUT_FOLDER, f"{file.name}_anaglyph.png")
-            cv2.imwrite(depth_map_path, depth_map)
-            cv2.imwrite(anaglyph_path, anaglyph)
-
-            # Display results
-            st.image([file_path, anaglyph_path], caption=["Original", "Anaglyph"])
-            st.download_button("Download Anaglyph Image", open(anaglyph_path, "rb"), file.name + "_anaglyph.png")
+st.write("Developed with MiDaS and Streamlit.")

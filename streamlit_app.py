@@ -12,7 +12,7 @@ MAX_IMAGES = 5
 MAX_RESOLUTION = (3840, 2160)  # 4K resolution
 
 # MiDaS model setup
-midas_model_type = "DPT_Large"  # or "DPT_Hybrid" for a smaller model
+midas_model_type = "MiDaS_small"  # or "DPT_Hybrid" for a smaller model
 midas = torch.hub.load("intel-isl/MiDaS", midas_model_type)
 midas_transforms = torch.hub.load("intel-isl/MiDaS", "transforms")
 transform = midas_transforms.default_transform

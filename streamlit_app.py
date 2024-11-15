@@ -9,7 +9,7 @@ from midas.transforms import Resize, NormalizeImage, PrepareForNet
 # Initialize the model and transformations
 @st.cache_resource
 def load_model():
-    model_path = "model-small.pt"  # Replace with the path to your small MiDaS model
+    model_path = "midas_v21_small-70d6b9c8.pt"  # Replace with the path to your small MiDaS model
     model = MidasNet_small(
         model_path,
         features=64,

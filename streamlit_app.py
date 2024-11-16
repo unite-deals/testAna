@@ -194,7 +194,13 @@ if uploaded_file is not None:
         right_img = generate_stereo(image, depth_map)
         right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
         #stereo = np.hstack([image, right_img])
-        anaglyph = overlap(image, right_img)
+        left_red = image[:, :, 2]  # Red channel from the left image
+        right_green_blue = right_img[:, :, :2]  # Green and Blue channels from the right image
+
+        # Create anaglyph by combining channels
+        anaglyph = np.zeros_like(image)
+        anaglyph[:, :, 2] = left_red  # Red channel from left image
+        anaglyph[:, :, 0:2] = right_green_blue 
         #anaglyph=cv2.bitwise_not(anaglyph)
         #anaglyph=cv2.cvtColor(anaglyph, cv2.COLOR_BGR2RGB)
         st.image(anaglyph, caption="Anaglyph Image", use_column_width=True)

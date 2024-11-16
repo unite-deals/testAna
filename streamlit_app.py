@@ -189,6 +189,7 @@ if uploaded_file is not None:
         right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
         #stereo = np.hstack([image, right_img])
         anaglyph = overlap(image, right_img)
+        anaglyph=cv2.bitwise_not(anaglyph)
         st.image(anaglyph, caption="Anaglyph Image", use_column_width=True)
 
 st.write("Developed with MiDaS and Streamlit.")

@@ -168,7 +168,7 @@ if uploaded_file is not None:
     # Load the image
     file_bytes = cv2.imdecode(np.frombuffer(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
     image = file_bytes
-    
+    image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     # Load the model

@@ -68,7 +68,8 @@ def generate_stereo(left_img, depth):
     depth_min = depth.min()
     depth_max = depth.max()
     depth = (depth - depth_min) / (depth_max - depth_min)
-
+    depth=depth.astype(np.uint8)
+    depth = cv2.cvtColor(depth, cv2.COLOR_BGR2GRAY)
     right = np.zeros_like(left_img)
 
     deviation_cm = IPD * 0.12
@@ -152,7 +153,7 @@ def process_image(image, model, transform, device):
         depth = cv2.blur(depth, (3, 3))
     #depth_map = write_depth(depth, bits=2, reverse=False)
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-    depth = depth.astype(np.uint16)
+    depth = depth.astype(np.uint8)
     depth_map = np.repeat(depth[..., np.newaxis], 3, axis=-1)
     #depth_map = write_depth(depth, bits=2, reverse=False)
     return depth_map

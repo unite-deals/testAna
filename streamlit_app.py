@@ -242,4 +242,4 @@ if uploaded_file is not None:
             st.image(anaglyph, caption="Anaglyph 3D", use_container_width=True)
         
 
-st.write("Developed with MiDaS and Streamlit.")
+st.write("Developed by Deep Sense AI , further details please contact with us www.aideepimage.com")

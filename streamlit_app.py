@@ -192,8 +192,9 @@ if uploaded_file is not None:
     # Generate anaglyph
     with st.spinner("Generating anaglyph..."):
         right_img = generate_stereo(image, depth_map)
-        right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
+        #right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
         #stereo = np.hstack([image, right_img])
+        image=cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         left_b, left_g, left_r = cv2.split(image)
         right_b, right_g, right_r = cv2.split(right_img)
 

@@ -182,7 +182,13 @@ if uploaded_file is not None:
         # Display depth map
         #depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
         st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
-
+    with st.spinner("Generating right..."):
+        right_img = generate_stereo(image, depth_map)
+        #right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
+        #depth_map = write_depth(depth, bits=2, reverse=False)
+        # Display depth map
+        #depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
+        st.image(right_img, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
     # Generate anaglyph
     with st.spinner("Generating anaglyph..."):
         right_img = generate_stereo(image, depth_map)

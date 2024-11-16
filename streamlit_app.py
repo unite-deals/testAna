@@ -8,6 +8,26 @@ from midas.transforms import Resize, NormalizeImage, PrepareForNet
 IPD = 6.5
 MONITOR_W = 38.5
 # Initialize the model and transformations
+hide_github_link_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visiblity: hidden;}
+    header {visibility: hidden;}
+        .viewerBadge_container__1QSob {
+            display: none !important;
+        }
+    </style>
+"""
+st.markdown(hide_github_link_style, unsafe_allow_html=True)
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
+
+
 @st.cache_resource
 def load_model():
     model_path = "midas_v21_small-70d6b9c8.pt"  # Replace with the path to your small MiDaS model

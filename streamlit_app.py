@@ -202,14 +202,14 @@ if uploaded_file is not None:
         model, transform, device = load_model()
 
     # Generate depth map
-    with st.spinner("Generating depth map..."):
-        depth_map = process_image(image, model, transform, device)
+    #with st.spinner("Generating depth map..."):
+       # depth_map = process_image(image, model, transform, device)
         #depth_map = write_depth(depth, bits=2, reverse=False)
         # Display depth map
         #depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
         #st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
-    with st.spinner("Generating right..."):
-        right_img = generate_stereo(image, depth_map)
+    #with st.spinner("Generating right..."):
+        #right_img = generate_stereo(image, depth_map)
         #right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
         #depth_map = write_depth(depth, bits=2, reverse=False)
         # Display depth map
@@ -217,6 +217,7 @@ if uploaded_file is not None:
         #st.image(right_img, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
     # Generate anaglyph
     with st.spinner("Generating anaglyph..."):
+        depth_map = process_image(image, model, transform, device)
         right_img = generate_stereo(image, depth_map)
         #right_img=cv2.cvtColor(right_img, cv2.COLOR_BGR2RGB)
         #stereo = np.hstack([image, right_img])

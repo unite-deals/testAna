@@ -5,3 +5,4 @@ matplotlib
 opencv-contrib-python-headless
 torch
 torchvision
+streamlit

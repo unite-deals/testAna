@@ -170,7 +170,7 @@ def process_image(image, model, transform, device):
                 .numpy()
             )
 
-        depth = cv2.blur(depth, (3, 3))
+        depth = cv2.blur(depth, (1, 1))
     #depth_map = write_depth(depth, bits=2, reverse=False)
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
     depth = depth.astype(np.uint8)
@@ -180,8 +180,13 @@ def process_image(image, model, transform, device):
     return depth_map
 
 # Streamlit App Interface
-st.title("Image to Depth Map and Anaglyph Generator")
-
+st.title("Image to Depth Map and Anaglyph Generator by AI ")
+#st.title("Depth Map Prediction Application")
+st.markdown("""
+    This app allows you to upload an image and predicts its depth map using advanced AI models.
+    - Depthmap to 3D anaglyph conversation .
+    - Outputs a side-by-side comparison of the original image and Anaglyph Image .
+""")
 # File upload
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 

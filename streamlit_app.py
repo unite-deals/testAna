@@ -175,6 +175,7 @@ if uploaded_file is not None:
         depth_map = process_image(image, model, transform, device)
         #depth_map = write_depth(depth, bits=2, reverse=False)
         # Display depth map
+        depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
         st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
 
     # Generate anaglyph

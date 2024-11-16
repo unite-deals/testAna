@@ -237,7 +237,7 @@ if uploaded_file is not None:
         #anaglyph=cv2.bitwise_not(anaglyph)
         #anaglyph=cv2.cvtColor(anaglyph, cv2.COLOR_BGR2RGB)
         anaglyph = cv2.cvtColor(anaglyph, cv2.COLOR_RGB2BGR)
-        st.image(anaglyph, caption="Anaglyph Image", use_column_width=True)
+        st.image(anaglyph, caption="Anaglyph Image", use_container_width=True)
 
     with st.spinner("Generating side by side view ..."):
         col1, col2 = st.columns(2)

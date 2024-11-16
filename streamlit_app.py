@@ -41,47 +41,115 @@ def load_model():
     return model, transform, device
 
 # Convert depth map to anaglyph
-def create_anaglyph(image, depth_map):
-    h, w = depth_map.shape
-    shift = 10  # Shift value for the anaglyph effect
-    anaglyph = np.zeros((h, w, 3), dtype=np.uint8)
-    
-    # Normalize depth map to range 0-255
-    depth_map = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    
-    # Create red (left) and cyan (right) channels
-    red_channel = cv2.addWeighted(image[:, :, 2], 1, depth_map, 0.5, 0)
-    cyan_channel = cv2.addWeighted(image[:, :, 0], 1, depth_map, 0.5, 0)
-    
-    # Shift the cyan channel for the 3D effect
-    cyan_channel_shifted = np.roll(cyan_channel, shift, axis=1)
-    
-    # Combine channels
-    anaglyph[:, :, 2] = red_channel  # Red
-    anaglyph[:, :, 0] = cyan_channel_shifted  # Cyan
-    
-    return anaglyph
+def write_depth(depth, bits=1, reverse=True):
+    depth_min = depth.min()
+    depth_max = depth.max()
+    max_val = (2**(8*bits))-1
+
+    if depth_max - depth_min > np.finfo("float").eps:
+        out = max_val * (depth - depth_min) / (depth_max - depth_min)
+    else:
+        out = 0
+    if not reverse:
+        out = max_val - out
+
+    if bits == 2:
+        depth_map = out.astype("uint16")
+    else:
+        depth_map = out.astype("uint8")
+
+    return depth_map
+
+
+def generate_stereo(left_img, depth):
+    h, w, c = left_img.shape
+
+    depth_min = depth.min()
+    depth_max = depth.max()
+    depth = (depth - depth_min) / (depth_max - depth_min)
+
+    right = np.zeros_like(left_img)
+
+    deviation_cm = IPD * 0.12
+    deviation = deviation_cm * MONITOR_W * (w / 1920)
+
+    print("\ndeviation:", deviation)
+
+    for row in range(h):
+        for col in range(w):
+            col_r = col - int((1 - depth[row][col] ** 2) * deviation)
+            # col_r = col - int((1 - depth[row][col]) * deviation)
+            if col_r >= 0:
+                right[row][col_r] = left_img[row][col]
+
+    right_fix = np.array(right)
+    gray = cv2.cvtColor(right_fix, cv2.COLOR_BGR2GRAY)
+    rows, cols = np.where(gray == 0)
+    for row, col in zip(rows, cols):
+        for offset in range(1, int(deviation)):
+            r_offset = col + offset
+            l_offset = col - offset
+            if r_offset < w and not np.all(right_fix[row][r_offset] == 0):
+                right_fix[row][col] = right_fix[row][r_offset]
+                break
+            if l_offset >= 0 and not np.all(right_fix[row][l_offset] == 0):
+                right_fix[row][col] = right_fix[row][l_offset]
+                break
+
+    return right_fix
+
+
+def overlap(im1, im2):
+    width1 = im1.shape[1]
+    height1 = im1.shape[0]
+    width2 = im2.shape[1]
+    height2 = im2.shape[0]
+
+    # final image
+    composite = np.zeros((height2, width2, 3), np.uint8)
+
+    # iterate through "left" image, filling in red values of final image
+    for i in range(height1):
+        for j in range(width1):
+            try:
+                composite[i, j, 2] = im1[i, j, 2]
+            except IndexError:
+                pass
+
+    # iterate through "right" image, filling in blue/green values of final image
+    for i in range(height2):
+        for j in range(width2):
+            try:
+                composite[i, j, 1] = im2[i, j, 1]
+                composite[i, j, 0] = im2[i, j, 0]
+            except IndexError:
+                pass
+
+    return composite
 
 # Process the uploaded image
 def process_image(image, model, transform, device):
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
     img_input = transform({"image": img})["image"]
-    img_input = torch.from_numpy(img_input).to(device).unsqueeze(0)
+    #img_input = torch.from_numpy(img_input).to(device).unsqueeze(0)
 
     with torch.no_grad():
-        depth_map = model(img_input)
-        depth_map = (
-            torch.nn.functional.interpolate(
-                depth_map.unsqueeze(1),
-                size=img.shape[:2],
-                mode="bicubic",
-                align_corners=False,
+        image = torch.from_numpy(img_input).to(device).unsqueeze(0)
+        depth = model.forward(image)
+        depth = (
+                torch.nn.functional.interpolate(
+                    depth.unsqueeze(1),
+                    size=img.shape[:2],
+                    mode="bicubic",
+                    align_corners=False,
+                )
+                .squeeze()
+                .cpu()
+                .numpy()
             )
-            .squeeze()
-            .cpu()
-            .numpy()
-        )
-    
+
+        depth = cv2.blur(depth, (3, 3))
+    depth_map = write_depth(depth, bits=2, reverse=False)
     return depth_map
 
 # Streamlit App Interface
@@ -104,13 +172,15 @@ if uploaded_file is not None:
     # Generate depth map
     with st.spinner("Generating depth map..."):
         depth_map = process_image(image, model, transform, device)
-        
+        #depth_map = write_depth(depth, bits=2, reverse=False)
         # Display depth map
         st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
 
     # Generate anaglyph
     with st.spinner("Generating anaglyph..."):
-        anaglyph_image = create_anaglyph(image, depth_map)
-        st.image(anaglyph_image, caption="Anaglyph Image", use_column_width=True)
+        right_img = generate_stereo(image, depth_map)
+        #stereo = np.hstack([image, right_img])
+        anaglyph = overlap(image, right_img)
+        st.image(anaglyph, caption="Anaglyph Image", use_column_width=True)
 
 st.write("Developed with MiDaS and Streamlit.")

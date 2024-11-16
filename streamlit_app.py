@@ -155,6 +155,7 @@ def process_image(image, model, transform, device):
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
     depth = depth.astype(np.uint8)
     depth_map = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+    depth_map=cv2.bitwise_not(depth_map)
     #depth_map = write_depth(depth, bits=2, reverse=False)
     return depth_map
 

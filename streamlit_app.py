@@ -64,7 +64,7 @@ def create_anaglyph(image, depth_map):
 
 # Process the uploaded image
 def process_image(image, model, transform, device):
-    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
     img_input = transform({"image": img})["image"]
     img_input = torch.from_numpy(img_input).to(device).unsqueeze(0)
 

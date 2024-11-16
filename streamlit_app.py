@@ -5,7 +5,8 @@ import cv2
 from torchvision.transforms import Compose
 from midas.midas_net_custom import MidasNet_small
 from midas.transforms import Resize, NormalizeImage, PrepareForNet
-
+IPD = 6.5
+MONITOR_W = 38.5
 # Initialize the model and transformations
 @st.cache_resource
 def load_model():

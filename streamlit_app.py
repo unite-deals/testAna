@@ -150,7 +150,10 @@ def process_image(image, model, transform, device):
             )
 
         depth = cv2.blur(depth, (3, 3))
-    depth_map = write_depth(depth, bits=2, reverse=False)
+    #depth_map = write_depth(depth, bits=2, reverse=False)
+    depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+    depth = depth.astype(np.uint8)
+    depth_map = np.repeat(depth[..., np.newaxis], 3, axis=-1)
     return depth_map
 
 # Streamlit App Interface
@@ -175,7 +178,7 @@ if uploaded_file is not None:
         depth_map = process_image(image, model, transform, device)
         #depth_map = write_depth(depth, bits=2, reverse=False)
         # Display depth map
-        depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
+        #depth_map=cv2.imencode('.png', depth_map)[1].tobytes()
         st.image(depth_map, caption="Depth Map", use_column_width=True, clamp=True, channels="GRAY")
 
     # Generate anaglyph

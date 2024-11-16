@@ -152,9 +152,9 @@ def process_image(image, model, transform, device):
         depth = cv2.blur(depth, (3, 3))
     #depth_map = write_depth(depth, bits=2, reverse=False)
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-    depth = depth.astype(np.uint8)
+    depth = depth.astype(np.uint16)
     depth_map = np.repeat(depth[..., np.newaxis], 3, axis=-1)
-    depth_map = write_depth(depth, bits=2, reverse=False)
+    #depth_map = write_depth(depth, bits=2, reverse=False)
     return depth_map
 
 # Streamlit App Interface
